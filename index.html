@@ -39,6 +39,7 @@
         justify-content: center;
         font-weight: bold;
         text-transform: uppercase;
+        padding: 0 5px;
       }
       .codigo {
         height: 40%;
@@ -80,32 +81,39 @@
 
     function buscarEImprimir() {
       const input = document.getElementById("codigoInput");
-      const codigo = input.value.trim();
+      const codigoOriginal = input.value.trim();
       const status = document.getElementById("status");
 
-      if (!codigo) return;
+      if (!codigoOriginal) return;
 
       status.style.color = "blue";
       status.innerText = "Buscando na base de dados...";
 
+      // Remove zeros à esquerda para a comparação não falhar
+      const codigoLimpo = codigoOriginal.replace(/^0+/, '');
+
       Papa.parse(URL_CSV, {
         download: true,
-        header: false, // Mudamos para falso para ler pelas posições exatas das colunas
+        header: false, 
         complete: function(results) {
           const dados = results.data;
           
-          // linha[1] é a Coluna B (Código) | linha[12] é a Coluna M (Descrição)
-          const itemEncontrado = dados.find(linha => linha[1] && linha[1].toString().trim() === codigo);
+          // Busca comparando os códigos sem os zeros à esquerda
+          const itemEncontrado = dados.find(linha => {
+            if (!linha[1]) return false;
+            const codPlanilhaLimpo = linha[1].toString().trim().replace(/^0+/, '');
+            return codPlanilhaLimpo === codigoLimpo;
+          });
 
           if (itemEncontrado) {
             status.style.color = "green";
             status.innerText = "Gerando etiqueta...";
 
-            document.getElementById("lblCod").innerText = itemEncontrado[1]; // Puxa da Coluna B
+            // Imprime o código com todos os zeros originais que você digitou
+            document.getElementById("lblCod").innerText = codigoOriginal; 
             
-            // Verifica se a coluna M tem texto. Se estiver vazia, avisa.
-            const descricaoTexto = itemEncontrado[12] ? itemEncontrado[12] : "DESCRIÇÃO NÃO ENCONTRADA NA COLUNA M";
-            document.getElementById("lblDesc").innerText = descricaoTexto; // Puxa da Coluna M
+            const descricaoTexto = itemEncontrado[12] ? itemEncontrado[12] : "SEM DESCRIÇÃO";
+            document.getElementById("lblDesc").innerText = descricaoTexto;
 
             window.print();
 
@@ -114,7 +122,7 @@
             status.innerText = "Aguardando próximo código...";
           } else {
             status.style.color = "red";
-            status.innerText = "Código não encontrado na base!";
+            status.innerText = `Erro: O código ${codigoOriginal} não está na coluna B!`;
             input.value = "";
             input.focus();
           }

@@ -1,1 +1,136 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <title>Painel Almoxarifado - Impressão</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+  <style>
+    /* Estilos do Painel de Bipagem (Visível na tela) */
+    body { font-family: Arial, sans-serif; background: #f4f5f7; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; }
+    .painel { background: white; padding: 40px; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.15); text-align: center; }
+    input { font-size: 24px; padding: 12px; text-align: center; width: 350px; border: 2px solid #ccc; border-radius: 4px; }
+    button { font-size: 18px; padding: 12px 25px; background: #0052cc; color: white; border: none; border-radius: 4px; cursor: pointer; margin-top: 15px; font-weight: bold; }
+    #status { margin-top: 20px; font-weight: bold; font-size: 16px; }
 
+    /* Estilos exclusivos para a Etiqueta (Ocultos na tela, visíveis APENAS para a impressora Zebra) */
+    #etiqueta_container { display: none; }
+
+    @media print {
+      /* Trava o tamanho do papel no padrão da bobina 100x50mm */
+      @page { size: 100mm 50mm; margin: 0; }
+      body * { visibility: hidden; }
+      body { margin: 0; background: white; display: block; }
+      
+      #etiqueta_container, #etiqueta_container * { visibility: visible; }
+      
+      /* Desenho exato da etiqueta com bordas e divisórias */
+      #etiqueta_container {
+        display: block;
+        position: absolute;
+        left: 0; top: 0;
+        width: 98mm; height: 48mm;
+        border: 2px solid black;
+        box-sizing: border-box;
+        padding: 2mm;
+      }
+      .descricao {
+        height: 60%;
+        border-bottom: 2px solid black;
+        font-size: 14px;
+        text-align: center;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: bold;
+        text-transform: uppercase;
+      }
+      .codigo {
+        height: 40%;
+        font-size: 45px;
+        text-align: center;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-family: 'Arial Black', sans-serif;
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <div class="painel">
+    <h2>SISTEMA DE ETIQUETAS ONLINE</h2>
+    <p>Bipe ou digite o código do item:</p>
+    <input type="text" id="codigoInput" autofocus placeholder="Ex: 0000003619">
+    <br>
+    <button onclick="buscarEImprimir()">Imprimir (Enter)</button>
+    <div id="status">Aguardando código...</div>
+  </div>
+
+  <div id="etiqueta_container">
+    <div class="descricao" id="lblDesc">DESCRIÇÃO AQUI</div>
+    <div class="codigo" id="lblCod">00000000</div>
+  </div>
+
+  <script>
+    // Link direto para a base de dados em formato CSV
+    const URL_CSV = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQq4Wtu_sEOpd0zJuHjYY-E0YrrakpDrDwuxUQLiep_aDm2AznrVkiKhwqqGVwIZR0S4BsbYhSvjo2V/pub?output=csv";
+
+    // Aciona a busca ao apertar Enter no teclado ou no bipador
+    document.getElementById("codigoInput").addEventListener("keypress", function(event) {
+      if (event.key === "Enter") {
+        event.preventDefault();
+        buscarEImprimir();
+      }
+    });
+
+    function buscarEImprimir() {
+      const input = document.getElementById("codigoInput");
+      const codigo = input.value.trim();
+      const status = document.getElementById("status");
+
+      if (!codigo) return;
+
+      status.style.color = "blue";
+      status.innerText = "Buscando na base de dados...";
+
+      Papa.parse(URL_CSV, {
+        download: true,
+        header: true,
+        complete: function(results) {
+          const dados = results.data;
+          
+          // Busca a linha onde o código da planilha bate com o código bipado
+          const itemEncontrado = dados.find(linha => linha.Codigo && linha.Codigo.trim() === codigo);
+
+          if (itemEncontrado) {
+            status.style.color = "green";
+            status.innerText = "Gerando etiqueta...";
+
+            // Alimenta a estrutura da etiqueta com os dados encontrados
+            document.getElementById("lblCod").innerText = itemEncontrado.Codigo;
+            document.getElementById("lblDesc").innerText = itemEncontrado.Descricao;
+
+            // Dispara a tela de impressão do navegador
+            window.print();
+
+            // Limpa o campo e foca novamente para a próxima bipagem
+            input.value = "";
+            input.focus();
+            status.innerText = "Aguardando próximo código...";
+          } else {
+            status.style.color = "red";
+            status.innerText = "Código não encontrado na base!";
+            input.value = "";
+            input.focus();
+          }
+        },
+        error: function() {
+          status.style.color = "red";
+          status.innerText = "Erro ao conectar com a planilha.";
+        }
+      });
+    }
+  </script>
+</body>
+</html>

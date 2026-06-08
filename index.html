@@ -5,25 +5,21 @@
   <title>Painel Almoxarifado - Impressão</title>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
   <style>
-    /* Estilos do Painel de Bipagem (Visível na tela) */
     body { font-family: Arial, sans-serif; background: #f4f5f7; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; }
     .painel { background: white; padding: 40px; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.15); text-align: center; }
     input { font-size: 24px; padding: 12px; text-align: center; width: 350px; border: 2px solid #ccc; border-radius: 4px; }
     button { font-size: 18px; padding: 12px 25px; background: #0052cc; color: white; border: none; border-radius: 4px; cursor: pointer; margin-top: 15px; font-weight: bold; }
     #status { margin-top: 20px; font-weight: bold; font-size: 16px; }
 
-    /* Estilos exclusivos para a Etiqueta (Ocultos na tela, visíveis APENAS para a impressora Zebra) */
     #etiqueta_container { display: none; }
 
     @media print {
-      /* Trava o tamanho do papel no padrão da bobina 100x50mm */
       @page { size: 100mm 50mm; margin: 0; }
       body * { visibility: hidden; }
       body { margin: 0; background: white; display: block; }
       
       #etiqueta_container, #etiqueta_container * { visibility: visible; }
       
-      /* Desenho exato da etiqueta com bordas e divisórias */
       #etiqueta_container {
         display: block;
         position: absolute;
@@ -73,10 +69,8 @@
   </div>
 
   <script>
-    // Link direto para a base de dados em formato CSV
     const URL_CSV = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQq4Wtu_sEOpd0zJuHjYY-E0YrrakpDrDwuxUQLiep_aDm2AznrVkiKhwqqGVwIZR0S4BsbYhSvjo2V/pub?output=csv";
 
-    // Aciona a busca ao apertar Enter no teclado ou no bipador
     document.getElementById("codigoInput").addEventListener("keypress", function(event) {
       if (event.key === "Enter") {
         event.preventDefault();
@@ -96,25 +90,25 @@
 
       Papa.parse(URL_CSV, {
         download: true,
-        header: true,
+        header: false, // Mudamos para falso para ler pelas posições exatas das colunas
         complete: function(results) {
           const dados = results.data;
           
-          // Busca a linha onde o código da planilha bate com o código bipado
-          const itemEncontrado = dados.find(linha => linha.Codigo && linha.Codigo.trim() === codigo);
+          // linha[1] é a Coluna B (Código) | linha[12] é a Coluna M (Descrição)
+          const itemEncontrado = dados.find(linha => linha[1] && linha[1].toString().trim() === codigo);
 
           if (itemEncontrado) {
             status.style.color = "green";
             status.innerText = "Gerando etiqueta...";
 
-            // Alimenta a estrutura da etiqueta com os dados encontrados
-            document.getElementById("lblCod").innerText = itemEncontrado.Codigo;
-            document.getElementById("lblDesc").innerText = itemEncontrado.Descricao;
+            document.getElementById("lblCod").innerText = itemEncontrado[1]; // Puxa da Coluna B
+            
+            // Verifica se a coluna M tem texto. Se estiver vazia, avisa.
+            const descricaoTexto = itemEncontrado[12] ? itemEncontrado[12] : "DESCRIÇÃO NÃO ENCONTRADA NA COLUNA M";
+            document.getElementById("lblDesc").innerText = descricaoTexto; // Puxa da Coluna M
 
-            // Dispara a tela de impressão do navegador
             window.print();
 
-            // Limpa o campo e foca novamente para a próxima bipagem
             input.value = "";
             input.focus();
             status.innerText = "Aguardando próximo código...";
